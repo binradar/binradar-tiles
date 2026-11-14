@@ -1,15 +1,15 @@
 {
 	"layers": {
-		"bins": { "minzoom": 10, "maxzoom": 14 }
+		"bins": { "minzoom": 14, "maxzoom": 14 }
 	},
 	"settings": {
-		"minzoom": 10,
+		"minzoom": 14,
 		"maxzoom": 14,
 		"basezoom": 14,
 		"include_ids": true,
-		"name": "TrashTracker bins",
+		"name": "BinRadar bins",
 		"version": "0.1",
-		"description": "Public waste baskets, waste disposal points and recycling points (OSM amenity=waste_basket/waste_disposal/recycling, plus bin=yes+waste=* proxies) worldwide, visible from zoom 10.",
+		"description": "Public waste baskets, waste disposal points and recycling points (OSM amenity=waste_basket/waste_disposal/recycling, plus bin=yes+waste=* proxies) worldwide, at the single zoom level 14 that Mapillary also serves its map features at; clients overzoom it.",
 		"compress": "gzip"
 	}
 }

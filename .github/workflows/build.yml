@@ -1,39 +1,73 @@
 name: Build bins layer
 
 # Builds the worldwide waste-basket ("Mülleimer") layer via TileDistillery's
-# reusable pipeline (foxandfeature/tiledistillery, see its
-# docs/ARCHITECTURE.md) from Geofabrik OSM extracts, then publishes the
-# result as a GitHub Release. No region_scope input: every Geofabrik leaf
+# reusable pipeline (tilelab/tiledistillery, see its
+# docs/reference/workflows.md) from Geofabrik OSM extracts, then publishes the
+# result as a GitHub Release. No regions input: every Geofabrik leaf
 # worldwide is in scope, since the point of this layer is every waste
 # basket, not a regional subset — amenity=waste_basket is a small,
 # lightweight filter (see tiles/process.lua), so a global point layer stays
-# well within what GitHub Releases can hold; there's no B2 publish job
-# wired up here. If that ever changes, tiledistillery also exposes a
-# _publish-b2.yml (see its docs/ARCHITECTURE.md "Publishing") — it would
-# need its own b2-publish environment/secrets set up on this repo first.
+# well within what GitHub Releases can hold. TileDistillery ships only
+# _pipeline.yml and _publish-release.yml; it has no reusable Backblaze B2
+# job, so outgrowing GitHub Releases would mean writing a publish job here
+# with this repo's own environment/secrets.
+#
+# The release is a download, not something a browser can read: GitHub
+# Releases send no CORS headers. The pages job therefore also unpacks the
+# archive into a static {z}/{x}/{y}.pbf directory on GitHub Pages, which
+# does send CORS headers. It cannot serve the .pmtiles file itself, because
+# Pages ignores Range requests. A single zoom level (see tiles/config.json)
+# keeps that directory at about 320k files and 140 MB, within Pages' 1 GB
+# site limit.
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 1 * 0"  # weekly, Sunday 03:00 UTC
+    - cron: "0 3 * * 0"  # weekly, Sunday 03:00 UTC
 
 jobs:
   build:
-    uses: foxandfeature/tiledistillery/.github/workflows/_pipeline.yml@main
+    uses: tilelab/tiledistillery/.github/workflows/_pipeline.yml@v1.0.0
     permissions:
-      contents: write  # tiledistillery keeps its claim/timing state on THIS repo's own `state` branch
+      contents: read
     with:
       config: tiles/config.json
       process: tiles/process.lua
-      output_basename: bins
-      attribution: "TrashTracker bins — data (c) OpenStreetMap contributors, ODbL"
+      layer: bins
+      attribution: "BinRadar bins — data (c) OpenStreetMap contributors, ODbL"
 
   publish:
     needs: build
-    uses: foxandfeature/tiledistillery/.github/workflows/_publish-release.yml@main
+    uses: tilelab/tiledistillery/.github/workflows/_publish-release.yml@v1.0.0
     permissions:
       contents: write
     with:
-      output_basename: bins
+      layer: bins
       tag: bins-latest
-      title: "TrashTracker bins (worldwide, zoom 10+)"
+      title: "BinRadar bins (worldwide, zoom 10+)"
+
+  pages:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bins-pmtiles
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pmtiles==3.8.1
+      - run: python scripts/unpack.py bins.pmtiles site/bins
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

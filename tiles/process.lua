@@ -1,4 +1,4 @@
--- TrashTracker "bins" layer.
+-- BinRadar "bins" layer.
 --
 -- Matches OSM nodes tagged amenity=waste_basket, amenity=waste_disposal,
 -- amenity=recycling, or bin=yes. The class attribute carries the matched
@@ -8,8 +8,11 @@
 -- bin=yes is treated as class=waste_basket, but flagged precision=low.
 -- It is commonly added to a bench or similar object rather than a
 -- dedicated waste basket node, so it is a weaker signal than a proper
--- amenity tag. waste=* is optional for every class; it is recorded when
--- present but never required for a match.
+-- amenity tag.
+--
+-- Each class carries one optional class-specific tag, recorded only when
+-- present and never required for a match: waste=* for the two waste
+-- classes and for bin=yes, recycling_type=* for recycling.
 --
 -- All matched objects are almost always mapped as nodes in OSM, so
 -- way_function has nothing to do.
@@ -50,42 +53,43 @@ local function set_common_attributes()
 	end
 end
 
+-- Records `key` as an attribute only when the node actually carries it,
+-- so an absent optional tag adds nothing to the tile rather than an
+-- empty string.
+local function record_optional_attribute(key)
+	local value = Find(key)
+	if value ~= "" then
+		Attribute(key, value)
+	end
+end
+
+-- Starts a `bins` feature for one matched node. Everything the classes
+-- share lives here; the caller adds only what is specific to its class.
+local function begin_bin(class)
+	Layer("bins", false)
+	Attribute("class", class)
+end
+
 function node_function(node)
 	local amenity = Find("amenity")
-	local waste = Find("waste")
 
-	if amenity == "waste_basket" then
-		Layer("bins", false)
-		Attribute("class", "waste_basket")
-		if waste ~= "" then
-			Attribute("waste", waste)
-		end
-		set_common_attributes()
-	elseif amenity == "waste_disposal" then
-		Layer("bins", false)
-		Attribute("class", "waste_disposal")
-		if waste ~= "" then
-			Attribute("waste", waste)
-		end
-		set_common_attributes()
+	-- The class name and the amenity value are the same string for these
+	-- two, so the matched value carries straight through.
+	if amenity == "waste_basket" or amenity == "waste_disposal" then
+		begin_bin(amenity)
+		record_optional_attribute("waste")
 	elseif amenity == "recycling" then
-		Layer("bins", false)
-		Attribute("class", "recycling")
-
-		local recycling_type = Find("recycling_type")
-		if recycling_type ~= "" then
-			Attribute("recycling_type", recycling_type)
-		end
-		set_common_attributes()
+		begin_bin("recycling")
+		record_optional_attribute("recycling_type")
 	elseif Find("bin") == "yes" then
-		Layer("bins", false)
-		Attribute("class", "waste_basket")
+		begin_bin("waste_basket")
 		Attribute("precision", "low")
-		if waste ~= "" then
-			Attribute("waste", waste)
-		end
-		set_common_attributes()
+		record_optional_attribute("waste")
+	else
+		return
 	end
+
+	set_common_attributes()
 end
 
 function way_function(way)
