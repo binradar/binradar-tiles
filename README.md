@@ -19,18 +19,28 @@ any of the build mechanics itself.
 | `tiles/process.lua` | tilemaker profile: emits nodes tagged `amenity=waste_basket`, `amenity=waste_disposal`, `amenity=recycling`, or `bin=yes` into `bins`, tagged with `class` (`waste_basket`, `waste_disposal`, or `recycling`) so the types stay distinguishable. `bin=yes` nodes are tagged `class=waste_basket` with `precision=low`, since that tag is a weaker signal than a proper amenity tag. Every feature also carries an `id` attribute plus `name` and `opening_hours` when present; `waste` is recorded for the waste classes and `recycling_type` for recycling, both optional. |
 | `.github/workflows/build.yml` | Calls TileDistillery's `_pipeline.yml` (Sundays 03:00 UTC + manual), then publishes `bins.pmtiles` as a GitHub Release via its `_publish-release.yml` and deploys the unpacked tiles to GitHub Pages. |
 | `scripts/unpack.py` | Unpacks `bins.pmtiles` into a decompressed `{z}/{x}/{y}.pbf` directory for Pages, which ignores Range requests and so cannot serve the archive itself. |
+| `scripts/tilejson.py` | Writes the TileJSON (`bins.json`) for the Pages tiles, taking zoom range, bounds, fields and attribution from the archive. |
+| `scripts/demo_style.py` | Writes a demo MapLibre style (`style.json`): OpenFreeMap's Positron basemap plus the bins as circles coloured by `class`. |
 
 ## Using the tiles
 
 Browsers can't read the release asset, since GitHub Releases send no CORS
-headers. Point MapLibre at the Pages copy instead, as a vector source with
-`minzoom` and `maxzoom` both set to 14:
+headers. Point MapLibre at the Pages copy instead, as a vector source by its
+TileJSON:
 
-```
-https://binradar.github.io/binradar-tiles/bins/{z}/{x}/{y}.pbf
+```js
+map.addSource("bins", {
+  type: "vector",
+  url: "https://binradar.github.io/binradar-tiles/bins.json",
+});
 ```
 
-Pages answers tiles without any bins with a 404.
+The tiles are only at zoom 14 (`bins/{z}/{x}/{y}.pbf`); MapLibre overzooms
+them above that and shows nothing below it. Pages answers tiles without any
+bins with a 404.
+
+For a quick look, open the demo style in Maputnik:
+<https://maplibre.org/maputnik/?style=https://binradar.github.io/binradar-tiles/style.json#14/52.52/13.405>
 
 ## How it builds
 

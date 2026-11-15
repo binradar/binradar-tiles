@@ -65,7 +65,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pmtiles==3.8.1
+      - id: pages
+        uses: actions/configure-pages@v5
       - run: python scripts/unpack.py bins.pmtiles site/bins
+      - run: python scripts/tilejson.py bins.pmtiles "${{ steps.pages.outputs.base_url }}/bins" "BinRadar bins" > site/bins.json
+      - run: python scripts/demo_style.py https://tiles.openfreemap.org/styles/positron "${{ steps.pages.outputs.base_url }}/bins.json" > site/style.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
