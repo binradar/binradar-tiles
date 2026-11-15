@@ -15,8 +15,9 @@ name: Build bins layer
 # The release is a download, not something a browser can read: GitHub
 # Releases send no CORS headers. The pages job therefore also unpacks the
 # archive into a static {z}/{x}/{y}.pbf directory on GitHub Pages, which
-# does send CORS headers. It cannot serve the .pmtiles file itself, because
-# Pages ignores Range requests. A single zoom level (see tiles/config.json)
+# does send CORS headers. It cannot serve the .pmtiles file itself: Pages
+# gzips responses on the fly and applies Range requests to the compressed
+# bytes, which browsers then fail to decode. A single zoom level (see tiles/config.json)
 # keeps that directory at about 320k files and 140 MB, within Pages' 1 GB
 # site limit.
 

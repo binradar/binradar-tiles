@@ -10,9 +10,12 @@
 -- dedicated waste basket node, so it is a weaker signal than a proper
 -- amenity tag.
 --
--- Each class carries one optional class-specific tag, recorded only when
--- present and never required for a match: waste=* for the two waste
--- classes and for bin=yes, recycling_type=* for recycling.
+-- Class-specific tags are recorded only when present and never required
+-- for a match: waste=* for the two waste classes and for bin=yes;
+-- recycling_type=* and the accepted materials for recycling. Those come
+-- from every recycling:<material>=yes tag, joined into one `recycling`
+-- attribute (e.g. "clothes;glass_bottles;paper") rather than one attribute
+-- per material, since OSM knows well over a hundred materials.
 --
 -- All matched objects are almost always mapped as nodes in OSM, so
 -- way_function has nothing to do.
@@ -51,6 +54,11 @@ local function set_common_attributes()
 	if opening_hours ~= "" then
 		Attribute("opening_hours", opening_hours)
 	end
+
+	local operator = Find("operator")
+	if operator ~= "" then
+		Attribute("operator", operator)
+	end
 end
 
 -- Records `key` as an attribute only when the node actually carries it,
@@ -60,6 +68,20 @@ local function record_optional_attribute(key)
 	local value = Find(key)
 	if value ~= "" then
 		Attribute(key, value)
+	end
+end
+
+local function record_recycling_materials()
+	local materials = {}
+	for _, key in ipairs(AllKeys()) do
+		local material = key:match("^recycling:(.+)$")
+		if material and Find(key) == "yes" then
+			table.insert(materials, material)
+		end
+	end
+	if #materials > 0 then
+		table.sort(materials)
+		Attribute("recycling", table.concat(materials, ";"))
 	end
 end
 
@@ -81,6 +103,7 @@ function node_function(node)
 	elseif amenity == "recycling" then
 		begin_bin("recycling")
 		record_optional_attribute("recycling_type")
+		record_recycling_materials()
 	elseif Find("bin") == "yes" then
 		begin_bin("waste_basket")
 		Attribute("precision", "low")
