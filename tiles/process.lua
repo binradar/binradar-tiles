@@ -8,7 +8,9 @@
 -- bin=yes is treated as class=waste_basket, but flagged precision=low.
 -- It is commonly added to a bench or similar object rather than a
 -- dedicated waste basket node, so it is a weaker signal than a proper
--- amenity tag.
+-- amenity tag. That object is recorded as `host`, its main tag as
+-- key=value (see record_host), so a consumer can say where the bin is;
+-- the name such a feature carries is the host's, e.g. the stop's.
 --
 -- Class-specific tags are recorded only when present and never required
 -- for a match: waste=* for the two waste classes and for bin=yes;
@@ -85,6 +87,37 @@ local function record_recycling_materials()
 	end
 end
 
+-- The object a bin=yes node is tagged on, as "key=value". Per taginfo in
+-- November 2026, 89 % of the 551k bin=yes nodes are bus stops; most of the
+-- rest are dog waste bag dispensers (amenity=vending_machine with
+-- vending=excrement_bags, 3.8 %), shelters (2.2 %), other stops and
+-- platforms, benches, car parks, street lamps and tram stops. Stops come
+-- first, since a stop often is a shelter or has a bench too. Tags such as
+-- bench=yes or shelter=yes describe a stop rather than being an object of
+-- their own; anything not listed gets no host.
+local HOSTS = {
+	{ "highway", "bus_stop" },
+	{ "railway", "tram_stop" },
+	{ "highway", "platform" },
+	{ "public_transport", "platform" },
+	{ "public_transport", "stop_position" },
+	{ "vending", "excrement_bags" },
+	{ "amenity", "shelter" },
+	{ "amenity", "bench" },
+	{ "amenity", "parking" },
+	{ "highway", "street_lamp" },
+}
+
+local function record_host()
+	for _, host in ipairs(HOSTS) do
+		local key, value = host[1], host[2]
+		if Find(key) == value then
+			Attribute("host", key .. "=" .. value)
+			return
+		end
+	end
+end
+
 -- Starts a `bins` feature for one matched node. Everything the classes
 -- share lives here; the caller adds only what is specific to its class.
 local function begin_bin(class)
@@ -108,6 +141,7 @@ function node_function(node)
 		begin_bin("waste_basket")
 		Attribute("precision", "low")
 		record_optional_attribute("waste")
+		record_host()
 	else
 		return
 	end
